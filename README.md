@@ -6,11 +6,11 @@ Pipeline es una libreria que intenta acercar mas java al mundo funcional. Utiliz
 Pipeline es un orquestador de funciones para que estas sean mucho mas faciles de utilizar y poder llegar asi a resolver grandes problemas de negocio.
 ```
 String response = new Pipeline<String>()
-                .call(x -> {
+                .chain(x -> {
                     assertEquals(x, "inicio");
                     return "hola";
                 })
-                .call(x -> {
+                .chain(x -> {
                     assertEquals(x, "hola");
                     return "adios";
                 })
@@ -20,15 +20,15 @@ String response = new Pipeline<String>()
                
  ```
  
-Como podemos ver pipeline nos orquesta las funciones introducidas en el methodo call y las ejecutara una tras otra cuando realizemos **execute()**.
+Como podemos ver pipeline nos orquesta las funciones introducidas en el methodo chain y las ejecutara una tras otra cuando realizemos **execute()**.
 
 ## Utilidades
 
-### Call
+### chain
 Este metodo nos orquesta las diferentes funciones como hemos visto anteriormente pero tambien le podemos pasar mas de 1 funcion por su parametro. Podriamos escribir lo mismo que hicimos anteriormente de esta forma
 ```
 String response = new Pipeline<String>()
-                .call(x -> {
+                .chain(x -> {
                     assertEquals(x, "inicio");
                     return "hola";
                 },x -> {
@@ -40,11 +40,11 @@ String response = new Pipeline<String>()
                 Assert.assertEquals(response, "adios");
                
  ```
- ### callBatch
+ ### chainConcat
  Este metodo nos lanzara las funciones que hemos pasado por parametro pero las lanzara en paralelo y nos devolvera el resultado en una lista ordenada por las funciones introducidas.
  ```
 List<String> response = new Pipeline<List<String>>()
-                .callBatch(x -> {
+                .chainConcat(x -> {
                     assertEquals(x, "inicio");
                     return "hola";
                 },x -> {
@@ -57,16 +57,16 @@ List<String> response = new Pipeline<List<String>>()
                 Assert.assertEquals(response.get(0), "adios");
  ```
  
- ### conditionalCall
+ ### chainIf
  Este metodo solo nos lanzara las funciones registradas en su interior si la condicion que le pasamos por parametro es cierta.
  
  ```
  String response = new Pipeline<String>()
-                .conditionalCall(x-> x.equals("inicio"), x -> {
+                .chainIf(x-> x.equals("inicio"), x -> {
                     assertEquals(x, "inicio");
                     return "hola";
                 })
-                .conditionalCall(x -> x.equals("pepe"), x -> {
+                .chainIf(x -> x.equals("pepe"), x -> {
                     assertEquals(x, "inicio");
                     return "adios";
                 })
@@ -81,10 +81,10 @@ List<String> response = new Pipeline<List<String>>()
  Los subscriptores son observadores que se lanzaran en diferentes momentos segun el metodo que utilizemos para ejecutarlos. *subscribeAfter, subscribeBefore, subscribeError, subscribeResult* . Pipeline es una libreria que trabaja en asyncrono por defecto , a no ser que utilizemos el metodo sync, por ello tenemos los subscriptores de error y resultado para poder trabajar con estos cuando pipeline haya tenido un error o haya finalizado la ajecucion.
  
   ```
- new Pipeline().conditionalCall(x-> x.equals("inicio"), x -> {
+ new Pipeline().chainIf(x-> x.equals("inicio"), x -> {
                     assertEquals(x, "inicio");
                     return "hola";
-                }).conditionalCall(x -> x.equals("pepe"), x -> {
+                }).chainIf(x -> x.equals("pepe"), x -> {
                     assertEquals(x, "inicio");
                     return "adios";
                 }).subscribeAfter(x->{

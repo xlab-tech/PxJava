@@ -1,4 +1,4 @@
-package com.apolo92.pipeline;
+package com.xlabtech.pipeline;
 
 import org.junit.Test;
 
@@ -11,13 +11,13 @@ public class PipelineTest {
 
     @Test
     public void composePipelines() {
-        Pipeline beforePipe = new Pipeline()
-                .call(x -> {
+        Px beforePipe = new Px()
+                .chain(x -> {
                     assertEquals(x, "init");
                     return "prueba";
                 });
 
-        String response = new Pipeline<String>().call(x -> {
+        String response = new Px<String>().chain(x -> {
             assertEquals(x, "prueba");
             return "prueba2";
         }).compose(beforePipe)
@@ -29,13 +29,13 @@ public class PipelineTest {
 
     @Test
     public void andThenPipelines() {
-        Pipeline beforePipe = new Pipeline()
-                .call(x -> {
+        Px beforePipe = new Px()
+                .chain(x -> {
                     assertEquals(x, "prueba");
                     return "prueba2";
                 });
 
-        Object response = new Pipeline<String>().call(x -> {
+        Object response = new Px<String>().chain(x -> {
             assertEquals(x, "init");
             return "prueba";
         }).andThen(beforePipe)
@@ -47,17 +47,17 @@ public class PipelineTest {
 
     @Test
     public void concatPipelines() {
-        Pipeline concat1 = new Pipeline().call(x -> {
+        Px concat1 = new Px().chain(x -> {
             assertEquals(x, "prueba");
             return "prueba2";
         });
 
-        Pipeline concat2 = new Pipeline().call(x -> {
+        Px concat2 = new Px().chain(x -> {
             assertEquals(x, "prueba2");
             return "prueba3";
         });
 
-        String response = new Pipeline<String>().call(x -> {
+        String response = new Px<String>().chain(x -> {
             assertEquals(x, "init");
             return "prueba";
         }).concat(concat1, concat2).sync().execute("init");
@@ -67,17 +67,17 @@ public class PipelineTest {
 
     @Test
     public void branchPipelines() {
-        Pipeline concat1 = new Pipeline().call(x -> {
+        Px concat1 = new Px().chain(x -> {
             assertEquals(x, "prueba");
             return "prueba2";
         });
 
-        Pipeline concat2 = new Pipeline().call(x -> {
+        Px concat2 = new Px().chain(x -> {
             assertEquals(x, "prueba");
             return "prueba3";
         });
 
-        List response = new Pipeline<List>().call(x -> {
+        List response = new Px<List>().chain(x -> {
             assertEquals(x, "init");
             return "prueba";
         }).branch(concat1, concat2).sync().execute("init");
@@ -88,13 +88,13 @@ public class PipelineTest {
 
     @Test
     public void verifySubscriters() {
-        String response = new Pipeline<String>().call(x -> {
+        String response = new Px<String>().chain(x -> {
             assertEquals(x, "init");
             return "prueba";
         }, x -> {
             assertEquals(x, "prueba");
             return "prueba2";
-        }).call(x -> {
+        }).chain(x -> {
             assertEquals(x, "prueba2");
             return "prueba3";
         }).subscribeBefore((x) -> assertTrue(x instanceof String), (x) -> System.out.println(x)).sync().execute("init");
@@ -104,8 +104,8 @@ public class PipelineTest {
 
     @Test
     public void callComunicationRunCorretly() {
-        String response = new Pipeline<String>()
-                .<String, String>call(x -> {
+        String response = new Px<String>()
+                .<String, String>chain(x -> {
                     assertEquals(x, "hola");
                     return "adios";
                 }, x -> {
@@ -118,8 +118,8 @@ public class PipelineTest {
 
     @Test
     public void testCallBatchComunucationRunSameTime() {
-        List<String> response = new Pipeline<List<String>>()
-                .callBatch(x -> {
+        List<String> response = new Px<List<String>>()
+                .chainConcat(x -> {
                             System.out.println(new Date().getTime());
                             assertEquals(x, "hola");
                             return "adios";
@@ -141,14 +141,14 @@ public class PipelineTest {
 
     @Test
     public void combineCallAndAssyncCallPipelineUtils() {
-        String response = new Pipeline<String>()
-                .call(x -> {
+        String response = new Px<String>()
+                .chain(x -> {
                     assertEquals(x, "inicio");
                     return "hola";
-                }).call(x -> {
+                }).chain(x -> {
                     assertEquals(x, "hola");
                     return "adios";
-                }).callBatch(x -> {
+                }).chainConcat(x -> {
                     assertEquals(x, "adios");
                     return "assync1";
                 }, x -> {
@@ -157,7 +157,7 @@ public class PipelineTest {
                 }, x -> {
                     assertEquals(x, "adios");
                     return "assync3";
-                }).call(x -> {
+                }).chain(x -> {
                     assertEquals(((List) x).get(0), "assync1");
                     assertEquals(((List) x).get(1), "assync2");
                     assertEquals(((List) x).get(2), "assync3");
@@ -169,7 +169,7 @@ public class PipelineTest {
 
     @Test
     public void conditionalCallExecuteFunctionsIfPredicateIsFalse() {
-        new Pipeline().conditionalCall(x -> x.equals("hola")
+        new Px().chainIf(x -> x.equals("hola")
                 , x -> {
                     fail();
                     return "adios";
@@ -181,7 +181,7 @@ public class PipelineTest {
 
     @Test
     public void conditionalCallExecuteFunctionsIfPredicateIsTrue() {
-        String response = new Pipeline<String>().<String,String>conditionalCall(x -> x.equals("body")
+        String response = new Px<String>().<String,String>chainIf(x -> x.equals("body")
                 , x -> {
                     assertEquals(x, "body");
                     return "adios";
@@ -189,12 +189,12 @@ public class PipelineTest {
                     assertEquals(x, "adios");
                     return "adios2";
                 })
-                .conditionalCall(x -> x.equals("adios4")
+                .chainIf(x -> x.equals("adios4")
                         , x -> {
                             fail();
                             return "test";
                         }
-                ).conditionalCall(x -> x.equals("adios2")
+                ).chainIf(x -> x.equals("adios2")
                         , x -> {
                             assertEquals(x, "adios2");
                             return "adios3";
@@ -207,7 +207,7 @@ public class PipelineTest {
 
     @Test(expected = RuntimeException.class)
     public void thowErrorInCall() throws InterruptedException {
-        new Pipeline().call(x -> {
+        new Px().chain(x -> {
             throw new RuntimeException();
         }).sync().execute("");
 
@@ -216,7 +216,7 @@ public class PipelineTest {
 
     @Test
     public void thowErrorInAssyncCall() throws InterruptedException {
-        new Pipeline().call(x -> {
+        new Px().chain(x -> {
             throw new RuntimeException();
         }).subscribeError(err -> {
             assertEquals(err.getClass(), RuntimeException.class);
@@ -226,7 +226,7 @@ public class PipelineTest {
 
     @Test
     public void throwErrorInCallAssync() throws InterruptedException {
-        new Pipeline().callBatch(x -> {
+        new Px().chainConcat(x -> {
             assertEquals(x, "test");
             return "hola";
         }, x -> {
@@ -241,7 +241,7 @@ public class PipelineTest {
 
     @Test
     public void executeAssyncWithConsumer() throws InterruptedException {
-        new Pipeline().call(x -> {
+        new Px().chain(x -> {
             System.out.println(x.toString());
             return "test1";
         }).subscribeResult(x -> assertEquals( x, "test1"))
@@ -252,10 +252,10 @@ public class PipelineTest {
 
     @Test
     public void executeAssyncWithSubscribeAfter() {
-        new Pipeline<>().subscribeAfter(x -> {
+        new Px<>().subscribeAfter(x -> {
             System.out.println(x);
             assertEquals(x.getClass(), String.class);
-        }).call(x -> "hola", x -> "hola1", x -> "hola2").execute("init");
+        }).chain(x -> "hola", x -> "hola1", x -> "hola2").execute("init");
     }
 
 }

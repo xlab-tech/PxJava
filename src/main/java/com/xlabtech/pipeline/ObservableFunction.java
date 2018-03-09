@@ -1,4 +1,4 @@
-package com.apolo92.pipeline;
+package com.xlabtech.pipeline;
 
 import java.util.Observable;
 import java.util.function.Function;

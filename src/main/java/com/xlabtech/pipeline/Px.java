@@ -1,4 +1,4 @@
-package com.apolo92.pipeline;
+package com.xlabtech.pipeline;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -9,7 +9,7 @@ import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public class Pipeline<R> {
+public class Px<R> {
 
     private final Optional<Function> initFunction;
     private final ObservableFunction obsAfter;
@@ -17,7 +17,7 @@ public class Pipeline<R> {
     private final Consumer complete;
     private final Function error;
 
-    public Pipeline() {
+    public Px() {
         this.initFunction = Optional.empty();
         this.obsAfter = new ObservableFunction();
         this.obsBefore = new ObservableFunction();
@@ -26,7 +26,7 @@ public class Pipeline<R> {
         this.error = (x) -> x;
     }
 
-    private Pipeline(Function initFunction, ObservableFunction obsAfter, ObservableFunction obsBefore, Consumer complete, Function error) {
+    private Px(Function initFunction, ObservableFunction obsAfter, ObservableFunction obsBefore, Consumer complete, Function error) {
         this.initFunction = Optional.ofNullable(initFunction);
         this.obsAfter = obsAfter;
         this.obsBefore = obsBefore;
@@ -34,7 +34,7 @@ public class Pipeline<R> {
         this.error = error;
     }
 
-    private Pipeline(Optional<Function> function, ObservableFunction obsAfter, ObservableFunction obsBefore, Consumer complete, Function error) {
+    private Px(Optional<Function> function, ObservableFunction obsAfter, ObservableFunction obsBefore, Consumer complete, Function error) {
         this.initFunction = function;
         this.obsAfter = obsAfter;
         this.obsBefore = obsBefore;
@@ -43,21 +43,21 @@ public class Pipeline<R> {
     }
 
     /**
-     * Reduce array functions to function call others when this is completed.
+     * Reduce array functions to function chain others when this is completed.
      *
      * @param functions array functions to reduce
      * @param <T>       type input functions
      * @param <U>       type returned functions
      * @return copy pipelne object
      */
-    public <T, U> Pipeline<R> call(Function<T, U>... functions) {
+    public <T, U> Px<R> chain(Function<T, U>... functions) {
         Optional<Function> function = Arrays.stream(functions).map(f -> obsBefore.andThen(f))
                 .map(f -> f.andThen(obsAfter))
                 .reduce((acc, idd) -> acc.andThen(idd));
 
         if (this.initFunction.isPresent())
-            return new Pipeline(this.initFunction.get().andThen(function.get()), this.obsAfter, this.obsBefore, this.complete, this.error);
-        else return new Pipeline(function, this.obsAfter, this.obsBefore, this.complete, this.error);
+            return new Px(this.initFunction.get().andThen(function.get()), this.obsAfter, this.obsBefore, this.complete, this.error);
+        else return new Px(function, this.obsAfter, this.obsBefore, this.complete, this.error);
     }
 
     /**
@@ -68,8 +68,8 @@ public class Pipeline<R> {
      * @param <U>       type returned functions
      * @return copy pipelne object
      */
-    public <T, U> Pipeline<R> callBatch(Function<T, U>... functions) {
-        return call(((input) -> (getAssyncFunctions(input, functions)).collect(Collectors.toList())));
+    public <T, U> Px<R> chainConcat(Function<T, U>... functions) {
+        return chain(((input) -> (getAssyncFunctions(input, functions)).collect(Collectors.toList())));
     }
 
     /**
@@ -81,8 +81,8 @@ public class Pipeline<R> {
      * @param <U>       type returned functions
      * @return copy pipelne object
      */
-    public <T, U> Pipeline<R> callBatchWithCustomCollector(Collector collector, Function<T, U>... functions) {
-        return call(((input) -> (getAssyncFunctions(input, functions)).collect(collector)));
+    public <T, U> Px<R> chainConcatWithCustomCollector(Collector collector, Function<T, U>... functions) {
+        return chain(((input) -> (getAssyncFunctions(input, functions)).collect(collector)));
     }
 
     /**
@@ -94,13 +94,9 @@ public class Pipeline<R> {
      * @param <U>       type returned functions
      * @return copy pipelne object
      */
-    public <T, U> Pipeline<R> conditionalCall(Predicate filter, Function<T, U>... functions) {
-        return call((input) -> Arrays.stream(functions).filter((x) -> filter.test(input))
+    public <T, U> Px<R> chainIf(Predicate filter, Function<T, U>... functions) {
+        return chain((input) -> Arrays.stream(functions).filter((x) -> filter.test(input))
                 .reduce((acc, idd) -> reduce(acc, idd)).map(f -> f.apply((T) input)).orElse((U) input));
-    }
-
-    private <T, U> Function<T, U> reduce(Function acc, Function idd) {
-        return acc.andThen(idd);
     }
 
     /**
@@ -108,7 +104,7 @@ public class Pipeline<R> {
      *
      * @return copy pipelne object
      */
-    public Pipeline<R> debugEnabled() {
+    public Px<R> debugEnabled() {
         return subscribeAfter(x -> System.out.println("finish function time: " + new Date().getTime() + " with output: " + x.toString()))
                 .subscribeBefore(x -> System.out.println("init function time: " + new Date().getTime() + " with input: " + x.toString()))
                 .subscribeError(x -> {
@@ -133,9 +129,9 @@ public class Pipeline<R> {
      * @param <T>
      * @return
      */
-    public <T> Pipeline<R> subscribeAfter(Consumer<T>... after) {
+    public <T> Px<R> subscribeAfter(Consumer<T>... after) {
         Arrays.stream(after).forEach(f -> this.obsAfter.addObserver((o, arg) -> f.accept((T) arg)));
-        return new Pipeline(this.initFunction, this.obsAfter, this.obsBefore, this.complete, this.error);
+        return new Px(this.initFunction, this.obsAfter, this.obsBefore, this.complete, this.error);
     }
 
     /**
@@ -145,9 +141,9 @@ public class Pipeline<R> {
      * @param <T>
      * @return
      */
-    public <T> Pipeline<R> subscribeBefore(Consumer<T>... before) {
+    public <T> Px<R> subscribeBefore(Consumer<T>... before) {
         Arrays.stream(before).forEach(f -> this.obsBefore.addObserver((o, arg) -> f.accept((T) arg)));
-        return new Pipeline(this.initFunction, this.obsAfter, this.obsBefore, this.complete, this.error);
+        return new Px(this.initFunction, this.obsAfter, this.obsBefore, this.complete, this.error);
     }
 
     /**
@@ -158,8 +154,8 @@ public class Pipeline<R> {
      * @param <U>
      * @return
      */
-    public <T, U> Pipeline<R> subscribeError(Function<T, U> error) {
-        return new Pipeline(this.initFunction, this.obsAfter, this.obsBefore, this.complete, error);
+    public <T, U> Px<R> subscribeError(Function<T, U> error) {
+        return new Px(this.initFunction, this.obsAfter, this.obsBefore, this.complete, error);
     }
 
     /**
@@ -169,8 +165,8 @@ public class Pipeline<R> {
      * @param <T>
      * @return
      */
-    public <T> Pipeline<R> subscribeResult(Consumer<T> complete) {
-        return new Pipeline(this.initFunction, this.obsAfter, this.obsBefore, complete, this.error);
+    public <T> Px<R> subscribeResult(Consumer<T> complete) {
+        return new Px(this.initFunction, this.obsAfter, this.obsBefore, complete, this.error);
     }
 
     /**
@@ -180,9 +176,9 @@ public class Pipeline<R> {
      * @param pipes chain of pipeline
      * @return
      */
-    public Pipeline<R> branchWithCustomCollector(Collector collector, Pipeline... pipes) {
+    public Px<R> branchWithCustomCollector(Collector collector, Px... pipes) {
         Objects.requireNonNull(pipes);
-        return call((input) -> getAssyncPipes(input, pipes).collect(collector));
+        return chain((input) -> getAssyncPx(input, pipes).collect(collector));
     }
 
     /**
@@ -191,9 +187,9 @@ public class Pipeline<R> {
      * @param pipes chain of pipeline
      * @return
      */
-    public Pipeline<R> branch(Pipeline... pipes) {
+    public Px<R> branch(Px... pipes) {
         Objects.requireNonNull(pipes);
-        return call((input) -> getAssyncPipes(input, pipes).collect(Collectors.toList()));
+        return chain((input) -> getAssyncPx(input, pipes).collect(Collectors.toList()));
     }
 
     /**
@@ -202,18 +198,18 @@ public class Pipeline<R> {
      * @param pipes chain of pipe
      * @return
      */
-    public Pipeline<R> concat(Pipeline... pipes) {
+    public Px<R> concat(Px... pipes) {
         Objects.requireNonNull(pipes);
-        return call((input) -> Arrays.stream(pipes).reduce((acc, idd) -> acc.andThen(idd)).map(p -> p.apply(input)).orElse((R) input));
+        return chain((input) -> Arrays.stream(pipes).reduce((acc, idd) -> acc.andThen(idd)).map(p -> p.apply(input)).orElse((R) input));
     }
 
     /**
      * @param pipeAfter pipe to execute after this.
      * @return
      */
-    public Pipeline<R> andThen(Pipeline pipeAfter) {
+    public Px<R> andThen(Px pipeAfter) {
         Objects.requireNonNull(pipeAfter);
-        return call((input) -> pipeAfter.apply(input));
+        return chain((input) -> pipeAfter.apply(input));
     }
 
     /**
@@ -221,9 +217,9 @@ public class Pipeline<R> {
      * @param pipeBefore pipe to execute before this
      * @return
      */
-    public Pipeline<R> compose(Pipeline pipeBefore) {
+    public Px<R> compose(Px pipeBefore) {
         Objects.requireNonNull(pipeBefore);
-        return new Pipeline((input) -> apply(pipeBefore.apply(input)), this.obsAfter, this.obsBefore, this.complete, this.error);
+        return new Px((input) -> apply(pipeBefore.apply(input)), this.obsAfter, this.obsBefore, this.complete, this.error);
     }
 
     /**
@@ -231,12 +227,12 @@ public class Pipeline<R> {
      *
      * @return
      */
-    public Observer pipleneToObserver() {
+    public Observer toObserver() {
         return (o, arg) -> this.sync().execute(arg);
     }
 
-    public void addPipelineObserverInObservableClass(Observable observable) {
-        observable.addObserver(pipleneToObserver());
+    public void addPxInObservable(Observable observable) {
+        observable.addObserver(toObserver());
     }
 
     /**
@@ -252,11 +248,15 @@ public class Pipeline<R> {
         return (R) initFunction.orElse(x -> x.toString()).apply(param);
     }
 
+    private <T, U> Function<T, U> reduce(Function acc, Function idd) {
+        return acc.andThen(idd);
+    }
+
     private Stream getAssyncFunctions(Object x, Function... functions) {
         return Arrays.stream(functions).parallel().map(f -> f.apply(x));
     }
 
-    private Stream getAssyncPipes(Object x, Pipeline... pipes) {
+    private Stream getAssyncPx(Object x, Px... pipes) {
         return Arrays.stream(pipes).parallel().map(p -> p.apply(x));
     }
 
