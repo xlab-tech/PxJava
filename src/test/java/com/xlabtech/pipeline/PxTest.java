@@ -7,7 +7,7 @@ import java.util.List;
 
 import static org.junit.Assert.*;
 
-public class PipelineTest {
+public class PxTest {
 
     @Test
     public void composePipelines() {
@@ -180,8 +180,38 @@ public class PipelineTest {
     }
 
     @Test
+    public void conditionalCallPxIfPredicateIsFalse() {
+        new Px().chainIf(x -> x.equals("hola")
+                , new Px<>().chain(x -> {
+                    fail();
+                    return "adios";
+                }, x -> {
+                    fail();
+                    return "dios2";
+                }))
+                .execute("body");
+    }
+
+    @Test
+    public void conditionalCallPxIfPredicate() {
+        new Px().chainIf(x -> x.equals("hola")
+                , new Px<>().chain(x -> {
+                    fail();
+                    return "adios";
+                }, x -> {
+                    fail();
+                    return "dios2";
+                })
+                , new Px().chain(x->{
+                    assertEquals(x,"body");
+                    return "adiosPX";
+                }))
+                .execute("body");
+    }
+
+    @Test
     public void conditionalCallExecuteFunctionsIfPredicateIsTrue() {
-        String response = new Px<String>().<String,String>chainIf(x -> x.equals("body")
+        String response = new Px<String>().<String, String>chainIf(x -> x.equals("body")
                 , x -> {
                     assertEquals(x, "body");
                     return "adios";
@@ -244,7 +274,7 @@ public class PipelineTest {
         new Px().chain(x -> {
             System.out.println(x.toString());
             return "test1";
-        }).subscribeResult(x -> assertEquals( x, "test1"))
+        }).subscribeResult(x -> assertEquals(x, "test1"))
                 .execute("init");
 
         Thread.sleep(300);

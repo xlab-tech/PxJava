@@ -60,6 +60,7 @@ public class Px<R> {
         else return new Px(function, this.obsAfter, this.obsBefore, this.complete, this.error);
     }
 
+
     /**
      * Invoke all functions in parallel execution and recover response in order list.
      *
@@ -97,6 +98,38 @@ public class Px<R> {
     public <T, U> Px<R> chainIf(Predicate filter, Function<T, U>... functions) {
         return chain((input) -> Arrays.stream(functions).filter((x) -> filter.test(input))
                 .reduce((acc, idd) -> reduce(acc, idd)).map(f -> f.apply((T) input)).orElse((U) input));
+    }
+
+    /**
+     * Invoke Px if predicate is true
+     *
+     * @param filter to validate if execute function
+     * @param pipes  array Px to reduce and concat
+     * @param <T>    type input functions
+     * @param <U>    type returned functions
+     * @return copy pipelne object
+     */
+    public <T, U> Px<R> chainIf(Predicate filter, Px... pipes) {
+        return chain((input) -> Arrays.stream(pipes).filter((x) -> filter.test(input))
+                .reduce((acc, idd) -> acc.andThen(idd)).map(p -> p.apply(input)).orElse(input));
+    }
+
+    /**
+     * Invoke Px if predicate is true or invoke second Px if predicate is false
+     *
+     * @param filter    to validate if execute function
+     * @param pipeTrue  Px to invoke if true
+     * @param pipeFalse Px to invoke if false
+     * @param <T>       type input functions
+     * @param <U>       type returned functions
+     * @return copy pipelne object
+     */
+    public <T, U> Px<R> chainIf(Predicate filter, Px pipeTrue, Px pipeFalse) {
+        return chain((input) -> {
+            if (filter.test(input))
+                return pipeTrue.apply(input);
+            return pipeFalse.apply(input);
+        });
     }
 
     /**
@@ -173,7 +206,7 @@ public class Px<R> {
      * Execute same time all pipes pass in param with specific collector
      *
      * @param collector to cast results pipes
-     * @param pipes chain of pipeline
+     * @param pipes     chain of pipeline
      * @return
      */
     public Px<R> branchWithCustomCollector(Collector collector, Px... pipes) {
@@ -213,7 +246,6 @@ public class Px<R> {
     }
 
     /**
-     *
      * @param pipeBefore pipe to execute before this
      * @return
      */
@@ -237,6 +269,7 @@ public class Px<R> {
 
     /**
      * Execute assync pipeline
+     *
      * @param param to input frist function in pipeline.
      */
     public void execute(Object param) {
@@ -264,6 +297,7 @@ public class Px<R> {
 
         /**
          * Execute sync pipeline.
+         *
          * @param param
          * @return
          */
